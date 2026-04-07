@@ -4,4 +4,13 @@ version = "0.1.0"
 description = "MVP risk management dashboard for book management metrics"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "pydantic>=2.12.5",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+[tool.pytest.ini_options]
+pythonpath = ["."]
