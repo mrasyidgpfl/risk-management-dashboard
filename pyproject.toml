@@ -1,0 +1,7 @@
+[project]
+name = "risk-management-dashboard"
+version = "0.1.0"
+description = "MVP risk management dashboard for book management metrics"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
