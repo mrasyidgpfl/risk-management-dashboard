@@ -2,10 +2,11 @@
 
 import asyncio
 import json
-from datetime import datetime
+import time
 
 from quart import Quart, render_template, websocket
 
+from .config import AppConfig
 from .engine import BookEngine
 from .models import MarketTick, Trade
 from .streamer import MarketDataStreamer
@@ -13,11 +14,12 @@ from .simulator import TradeSimulator
 
 app = Quart(__name__, template_folder="templates")
 
-# Global state
+config = AppConfig()
 engine = BookEngine()
-streamer = MarketDataStreamer()
+streamer = MarketDataStreamer(tick_interval=config.tick_interval_ms / 1000)
 simulator: TradeSimulator | None = None
 ws_clients: set = set()
+_last_broadcast: float = 0.0
 
 
 async def process_ticks(tick_queue: asyncio.Queue) -> None:
@@ -32,13 +34,28 @@ async def process_trades(trade_queue: asyncio.Queue) -> None:
     while True:
         trade: Trade = await trade_queue.get()
         engine.process_trade(trade)
-        await broadcast_snapshot()
+        await maybe_broadcast()
+
+
+async def maybe_broadcast() -> None:
+    """Throttled broadcast — skips if too soon since last push."""
+    global _last_broadcast
+    now = time.monotonic()
+    if (now - _last_broadcast) < (config.ws_throttle_ms / 1000):
+        return
+    _last_broadcast = now
+    await broadcast_snapshot()
 
 
 async def broadcast_snapshot() -> None:
     """Send current book snapshot to all connected WebSocket clients."""
     global ws_clients
     snapshot = engine.snapshot()
+
+    # Trim PnL history
+    if len(engine.pnl_history) > config.pnl_history_max:
+        engine.pnl_history = engine.pnl_history[-config.pnl_history_max:]
+
     data = {
         "type": "snapshot",
         "timestamp": snapshot.timestamp.isoformat(),
@@ -97,7 +114,11 @@ async def startup() -> None:
 
     tick_queue_engine = streamer.subscribe()
     tick_queue_simulator = streamer.subscribe()
-    simulator = TradeSimulator(tick_queue=tick_queue_simulator)
+    simulator = TradeSimulator(
+        tick_queue=tick_queue_simulator,
+        trade_interval=config.trade_interval_ms / 1000,
+        trade_probability=config.trade_probability,
+    )
     trade_queue = simulator.subscribe()
 
     app.add_background_task(streamer.start)
@@ -124,7 +145,7 @@ async def ws():
 
 
 def main() -> None:
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host=config.host, port=config.port)
 
 
 if __name__ == "__main__":
