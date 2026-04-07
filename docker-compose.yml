@@ -1,0 +1,24 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+  # Optional: Redis + Celery for periodic reporting
+  # Uncomment to enable scheduled report snapshots
+  #
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #
+  # worker:
+  #   build: .
+  #   command: uv run celery -A src.tasks worker --beat --loglevel=info
+  #   depends_on:
+  #     - redis
+  #   environment:
+  #     - CELERY_BROKER_URL=redis://redis:6379/0
