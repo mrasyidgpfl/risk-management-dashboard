@@ -13,6 +13,8 @@ INSTRUMENTS = {
     "USD/JPY": 155.00,
     "AUD/USD": 0.6500,
     "USD/CHF": 0.9100,
+    "SPXUSD": 5800.00,     # US Large Cap 500
+    "D30EUR": 18500.00,    # Germany 40 Index
 }
 
 # Typical spread in price units per instrument
@@ -22,8 +24,9 @@ SPREADS = {
     "USD/JPY": 0.02,
     "AUD/USD": 0.0002,
     "USD/CHF": 0.0003,
+    "SPXUSD": 0.50,
+    "D30EUR": 1.50,
 }
-
 
 class MarketDataStreamer:
     """Generates mock bid/ask prices using a random walk."""

@@ -138,8 +138,7 @@
                         <div class="ticker-prices">
                             <span class="bid">${t.bid.toFixed(5)}</span>
                             <span class="ask">${t.ask.toFixed(5)}</span>
-                            <span style="color:#6b7280;font-size:11px">${(t.spread * 10000).toFixed(1)}bp</span>
-                        </div>
+                            <span style="color:#6b7280;font-size:11px">${t.spread < 0.01 ? t.spread.toFixed(4) : t.spread.toFixed(2)}</span>                        </div>
                     </div>
                 `).join('');
 
