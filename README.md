@@ -2,6 +2,12 @@
 
 MVP risk management dashboard visualising real-time book management metrics. Simulates a market-making environment where clients trade against our prices and exposure accumulates on our book.
 
+## Prerequisites
+
+- Python 3.10+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) - install with `curl -LsSf https://astral.sh/uv/install.sh | sh` or `brew install uv`
+- (**Optional**) [Docker](https://docs.docker.com/get-docker/) (if choosing to run with one)
+
 ## Quick Start
 
 ```bash
