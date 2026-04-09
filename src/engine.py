@@ -13,7 +13,8 @@ from .models import (
 
 
 class BookEngine:
-    """Tracks positions, calculates PnL, and aggregates client metrics.
+    """
+    Tracks positions, calculates PnL, and aggregates client metrics.
     
     When a client buys, we sell (go short).
     When a client sells, we buy (go long).
@@ -25,6 +26,7 @@ class BookEngine:
         self.latest_ticks: dict[str, MarketTick] = {}
         self.pnl_history: list[tuple[datetime, float]] = []
         self.trades: list[Trade] = []
+        self.pnl_per_client: dict[str, float] = {}
 
     def update_tick(self, tick: MarketTick) -> None:
         """Update latest market data for an instrument."""
@@ -61,11 +63,14 @@ class BookEngine:
             # Reducing/closing/flipping position — realise PnL
             close_qty = min(abs(our_quantity), abs(pos.net_quantity))
             if pos.net_quantity > 0:
-                # We were long, closing by going short
-                pos.realised_pnl += close_qty * (trade.price - pos.avg_entry_price)
+                client_pnl = close_qty * (trade.price - pos.avg_entry_price)
+                pos.realised_pnl += client_pnl
             else:
-                # We were short, closing by going long
-                pos.realised_pnl += close_qty * (pos.avg_entry_price - trade.price)
+                client_pnl = close_qty * (pos.avg_entry_price - trade.price)
+                pos.realised_pnl += client_pnl
+
+            # Attribute realised PnL to client
+            self.pnl_per_client[trade.client] = self.pnl_per_client.get(trade.client, 0.0) + client_pnl
 
             # If flipping, set new entry price for remainder
             remainder = abs(our_quantity) - close_qty

@@ -62,6 +62,7 @@ async def broadcast_snapshot() -> None:
         "total_pnl": snapshot.total_pnl,
         "total_unrealised_pnl": snapshot.total_unrealised_pnl,
         "total_realised_pnl": snapshot.total_realised_pnl,
+        "pnl_per_client": {k: round(v, 2) for k, v in engine.pnl_per_client.items()},
         "positions": {
             k: {
                 "instrument": v.instrument,

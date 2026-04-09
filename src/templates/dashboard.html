@@ -83,8 +83,7 @@
                 <div id="client-table-container">
                     <table>
                         <thead>
-                            <tr><th>Client</th><th>Trades</th><th>Volume</th><th>Spread Captured</th><th>Yield (bps)</th></tr>
-                        </thead>
+                        <tr><th>Client</th><th>Trades</th><th>Volume</th><th>Spread Captured</th><th>Yield (bps)</th><th>Realised PnL</th></tr>                        </thead>
                         <tbody id="client-table"></tbody>
                     </table>
                 </div>
@@ -168,6 +167,7 @@
                         <td>${formatNum(c.total_volume)}</td>
                         <td>${formatNum(c.total_spread_paid, 4)}</td>
                         <td>${formatNum(c.yield_bps, 1)}</td>
+                        <td><span class="${pnlClass(d.pnl_per_client[c.client] || 0)}">${pnlSign(d.pnl_per_client[c.client] || 0)}${formatNum(d.pnl_per_client[c.client] || 0)}</span></td>
                     </tr>`).join('');
             };
         }
