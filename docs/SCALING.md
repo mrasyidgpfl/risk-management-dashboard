@@ -18,8 +18,12 @@ At default settings:
 
 ## Throttling
 
-`ws_throttle_ms` in `src/config.py` controls the minimum interval between dashboard updates. The backend processes every tick and trade regardless — throttling only reduces how often snapshots are pushed to the frontend. No data is lost.
+- `ws_throttle_ms` in `src/config.py` controls the minimum interval between dashboard updates. The backend processes every tick and trade regardless and throttling only reduces how often snapshots are pushed to the frontend. No data is lost.
+
+- PnL history is capped at `pnl_history_max` (default 500 points) to bound memory usage over long-running sessions.
 
 ## Beyond Single Process
 
-At significantly higher scale, the in-memory queues swap out for external message brokers (Redis, Kafka) and the components run as separate services. The current async queue abstraction makes this a straightforward migration.
+- At significantly higher scale, the in-memory queues swap out for external message brokers (Redis, Kafka) and the components run as separate services. The current async queue abstraction makes this a simple migration.
+
+- At higher instrument counts, switching from full-state snapshots to delta-based updates would reduce WebSocket payload size.

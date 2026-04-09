@@ -7,11 +7,9 @@ class AppConfig(BaseModel):
     """Central configuration for tuning scale and performance."""
 
     # Market data
-    num_instruments: int = 5
     tick_interval_ms: int = 100  # ms between price ticks
 
     # Trade simulation
-    num_clients: int = 5
     trade_interval_ms: int = 500
     trade_probability: float = 0.3
 

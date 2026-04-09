@@ -35,7 +35,7 @@ Market Data Streamer ──→ Book Engine ──→ WebSocket ──→ Dashboa
 Trade Simulator ──────────────┘
 ```
 
-- **Market Data Streamer** — generates random-walk bid/ask prices for 5 FX instruments at configurable intervals. Publishes ticks to subscribers via async queues.
+- **Market Data Streamer** — generates random-walk bid/ask prices for 7 multi-asset instruments at configurable intervals. Publishes ticks to subscribers via async queues.
 - **Trade Simulator** — consumes price ticks and simulates client trading activity. Clients randomly buy (at ask) or sell (at bid), creating positions on our book.
 - **Book Engine** — core business logic. Tracks net positions per instrument, calculates realised and unrealised PnL (mark-to-market), and aggregates client metrics (volume, spread captured, yield).
 - **Dashboard** — Quart web app serving a Plotly.js frontend. Receives real-time updates via WebSocket with configurable throttling.
@@ -55,9 +55,10 @@ Trade Simulator ──────────────┘
 | PnL Curve | Time series of total book PnL |
 | Net Exposure | Current long/short position per instrument |
 | PnL Attribution | PnL breakdown by instrument |
-| Client Metrics | Per-client trade count, volume, spread captured, and yield in basis points |
+| Monetisation | Spread captured per client |
+| Client Yield | Spread captured relative to volume, in basis points |
+| Client PnL | Realised PnL attributed per client |
 | Live Prices | Real-time bid/ask/spread for all instruments |
-
 ## Configuration
 
 All parameters are tuneable in `src/config.py`:

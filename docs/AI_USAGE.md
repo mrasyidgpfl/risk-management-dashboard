@@ -12,8 +12,11 @@ This project was developed with AI assistance (Claude) as a pair programming par
 
 ## What required human judgment
 
+- Researching product architecture, exchange data pricing list, and instrument naming conventions to inform realistic mock data
 - Architecture decisions (Quart over Dash, async queues over Celery for the MVP, Docker as optional layer)
-- Domain modelling: how PnL calculation, mark-to-market, and book positions work
+- Identifying missing metrics (per-client PnL attribution) and prioritising which to implement
+- Domain modelling: PnL calculation, mark-to-market, and book position logic
 - Evaluation trade-offs: prioritising reproducibility and stability over feature count
 - Code review, debugging, and integration across components
 - Scalability analysis and throttling strategy
+- Reviewing and rewriting documentation
