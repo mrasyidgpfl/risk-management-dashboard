@@ -62,6 +62,7 @@ async def broadcast_snapshot() -> None:
         "total_pnl": snapshot.total_pnl,
         "total_unrealised_pnl": snapshot.total_unrealised_pnl,
         "total_realised_pnl": snapshot.total_realised_pnl,
+        "total_monetisation": snapshot.total_monetisation,
         "pnl_per_client": {k: round(v, 2) for k, v in engine.pnl_per_client.items()},
         "positions": {
             k: {
@@ -70,6 +71,7 @@ async def broadcast_snapshot() -> None:
                 "total_pnl": v.total_pnl,
                 "unrealised_pnl": v.unrealised_pnl,
                 "realised_pnl": v.realised_pnl,
+                "monetisation": v.monetisation,
                 "trade_count": v.trade_count,
             }
             for k, v in snapshot.positions.items()

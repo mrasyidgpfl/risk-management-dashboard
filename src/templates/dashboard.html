@@ -161,6 +161,10 @@
                 <div class="metric-value" id="total-pnl">-</div>
             </div>
             <div class="metric">
+                <div class="metric-label">Monetisation</div>
+                <div class="metric-value" id="monetisation">-</div>
+            </div>
+            <div class="metric">
                 <div class="metric-label">Unrealised PnL</div>
                 <div class="metric-value" id="unrealised-pnl">-</div>
             </div>
@@ -226,7 +230,11 @@
 
         Plotly.newPlot('pnl-chart', [{ x: [], y: [], type: 'scatter', mode: 'lines', line: { color: '#6366f1', width: 2 }, name: 'Total PnL' }], { ...plotLayout }, { responsive: true, displayModeBar: false });
         Plotly.newPlot('exposure-chart', [{ x: [], y: [], type: 'bar', marker: { color: [] } }], { ...plotLayout }, { responsive: true, displayModeBar: false });
-        Plotly.newPlot('attribution-chart', [{ x: [], y: [], type: 'bar', marker: { color: [] } }], { ...plotLayout }, { responsive: true, displayModeBar: false });
+        Plotly.newPlot('attribution-chart', [
+                    { x: [], y: [], type: 'bar', name: 'Monetisation', marker: { color: colors.positive } },
+                    { x: [], y: [], type: 'bar', name: 'Inventory PnL', marker: { color: colors.accent } },
+                ], { ...plotLayout, barmode: 'relative', showlegend: true, legend: { orientation: 'h', y: 1.1 } },
+                { responsive: true, displayModeBar: false });
 
         function formatNum(n, decimals = 2) {
             return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -248,6 +256,7 @@
 
                 // Top metrics
                 document.getElementById('total-pnl').innerHTML = `<span class="${pnlClass(d.total_pnl)}">${pnlSign(d.total_pnl)}${formatNum(d.total_pnl)}</span>`;
+                document.getElementById('monetisation').innerHTML = `<span class="positive">+${formatNum(d.total_monetisation)}</span>`;
                 document.getElementById('unrealised-pnl').innerHTML = `<span class="${pnlClass(d.total_unrealised_pnl)}">${pnlSign(d.total_unrealised_pnl)}${formatNum(d.total_unrealised_pnl)}</span>`;
                 document.getElementById('realised-pnl').innerHTML = `<span class="${pnlClass(d.total_realised_pnl)}">${pnlSign(d.total_realised_pnl)}${formatNum(d.total_realised_pnl)}</span>`;
                 const totalTrades = Object.values(d.positions).reduce((sum, p) => sum + p.trade_count, 0);
@@ -277,10 +286,19 @@
                 const expColors = exposures.map(e => e >= 0 ? '#4ade80' : '#f87171');
                 Plotly.react('exposure-chart', [{ x: instruments, y: exposures, type: 'bar', marker: { color: expColors } }], { ...plotLayout, xaxis: { ...plotLayout.xaxis, type: 'category' } }, { responsive: true, displayModeBar: false });
 
-                // Attribution
-                const pnls = instruments.map(i => d.positions[i].total_pnl);
-                const attrColors = pnls.map(p => p >= 0 ? '#4ade80' : '#f87171');
-                Plotly.react('attribution-chart', [{ x: instruments, y: pnls, type: 'bar', marker: { color: attrColors } }], { ...plotLayout, xaxis: { ...plotLayout.xaxis, type: 'category' } }, { responsive: true, displayModeBar: false });
+                // Attribution: Total PnL = Monetisation (spread) + Inventory PnL (mark-to-market)
+                const monetisationByInst = instruments.map(i => d.positions[i].monetisation);
+                const inventoryByInst = instruments.map(i =>
+                    d.positions[i].total_pnl - d.positions[i].monetisation
+                );
+                Plotly.react('attribution-chart', [
+                    { x: instruments, y: monetisationByInst, type: 'bar', name: 'Monetisation',
+                      marker: { color: colors.positive } },
+                    { x: instruments, y: inventoryByInst, type: 'bar', name: 'Inventory PnL',
+                      marker: { color: inventoryByInst.map(v => v >= 0 ? colors.positive : colors.negative) } },
+                ], { ...plotLayout, barmode: 'relative', xaxis: { ...plotLayout.xaxis, type: 'category' },
+                     showlegend: true, legend: { orientation: 'h', y: 1.1 } },
+                { responsive: true, displayModeBar: false });
 
                 // Client table
                 const tbody = document.getElementById('client-table');

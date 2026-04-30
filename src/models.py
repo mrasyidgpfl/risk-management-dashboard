@@ -48,6 +48,7 @@ class BookPosition(BaseModel):
     total_pnl: float = 0.0
     unrealised_pnl: float = 0.0
     realised_pnl: float = 0.0
+    monetisation: float = 0.0 
     avg_entry_price: float = 0.0
     trade_count: int = 0
 
@@ -59,6 +60,7 @@ class BookSnapshot(BaseModel):
     total_pnl: float = 0.0
     total_unrealised_pnl: float = 0.0
     total_realised_pnl: float = 0.0
+    total_monetisation: float = 0.0
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 

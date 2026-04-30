@@ -85,24 +85,36 @@ class BookEngine:
         self._update_client_metrics(trade)
 
     def _update_client_metrics(self, trade: Trade) -> None:
-        """Track per-client trading metrics."""
-        metrics = self.client_metrics.get(
-            trade.client,
-            ClientMetrics(client=trade.client),
-        )
-        tick = self.latest_ticks.get(trade.instrument)
+            """Track per-client trading metrics."""
+            metrics = self.client_metrics.get(
+                trade.client,
+                ClientMetrics(client=trade.client),
+            )
+            tick = self.latest_ticks.get(trade.instrument)
 
-        metrics.trade_count += 1
-        metrics.total_volume += trade.quantity * trade.price
+            metrics.trade_count += 1
+            metrics.total_volume += trade.quantity * trade.price
 
-        if tick:
-            # Spread captured = half spread per unit (we earn the spread)
-            metrics.total_spread_paid += trade.quantity * tick.spread
+            if tick:
+                # Monetisation per fill = half-spread × quantity.
+                # Canonical formula: (fill_price - mid) * client_direction * size.
+                # Client buys at ask: (ask - mid) * (+1) * size = (spread / 2) * size.
+                # Client sells at bid: (bid - mid) * (-1) * size = (spread / 2) * size.
+                # Either way we capture half the quoted spread per unit traded.
+                spread_captured = trade.quantity * tick.spread / 2
+                metrics.total_spread_paid += spread_captured
 
-        if metrics.total_volume > 0:
-            metrics.yield_bps = (metrics.total_spread_paid / metrics.total_volume) * 10_000
+                # Also attribute monetisation to the instrument's position so the
+                # attribution chart can decompose total PnL into spread + inventory.
+                pos = self.positions.get(trade.instrument)
+                if pos is not None:
+                    pos.monetisation += spread_captured
+                    self.positions[trade.instrument] = pos
 
-        self.client_metrics[trade.client] = metrics
+            if metrics.total_volume > 0:
+                metrics.yield_bps = (metrics.total_spread_paid / metrics.total_volume) * 10_000
+
+            self.client_metrics[trade.client] = metrics
 
     def mark_to_market(self) -> None:
         """Recalculate unrealised PnL using latest market prices."""
@@ -128,6 +140,7 @@ class BookEngine:
         total_pnl = sum(p.total_pnl for p in self.positions.values())
         total_unrealised = sum(p.unrealised_pnl for p in self.positions.values())
         total_realised = sum(p.realised_pnl for p in self.positions.values())
+        total_monetisation = sum(p.monetisation for p in self.positions.values())
 
         self.pnl_history.append((datetime.utcnow(), total_pnl))
 
@@ -136,4 +149,5 @@ class BookEngine:
             total_pnl=total_pnl,
             total_unrealised_pnl=total_unrealised,
             total_realised_pnl=total_realised,
+            total_monetisation=total_monetisation,
         )
