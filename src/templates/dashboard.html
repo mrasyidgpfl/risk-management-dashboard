@@ -56,6 +56,99 @@
         .status { font-size: 13px; color: var(--positive); }
         .status.disconnected { color: var(--negative); }
 
+        /* ---------- Header actions ---------- */
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--gap);
+        }
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-ghost {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 6px 12px;
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .btn-ghost:hover {
+            border-color: var(--accent);
+            background: var(--bg-surface);
+        }
+        .btn-ghost:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        /* ---------- Modal ---------- */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            z-index: 1000;
+        }
+        .modal.open { display: flex; }
+        .modal-dialog {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            max-width: 95vw;
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px var(--pad);
+            border-bottom: 1px solid var(--border);
+        }
+        .modal-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .modal-close {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            width: 28px;
+            height: 28px;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-close:hover { color: var(--text-primary); border-color: var(--accent); }
+        .modal-body {
+            padding: var(--pad);
+            overflow: auto;
+            /* Themed background behind transparent PNGs */
+            background: #ffffff;
+        }
+        .modal-body img {
+            display: block;
+            max-width: 100%;
+            max-height: calc(92vh - 80px);
+            height: auto;
+            margin: 0 auto;
+        }
+
         /* ---------- Layout ---------- */
         .grid {
             display: grid;
@@ -151,7 +244,26 @@
 <body>
     <div class="header">
         <h1>Risk Management Dashboard</h1>
-        <div class="status disconnected" id="status">Connecting...</div>
+        <div class="header-right">
+            <div class="header-actions">
+                <button class="btn-ghost" type="button" data-modal-open="arch">Architecture</button>
+                <button class="btn-ghost" type="button" data-modal-open="class">Class Diagram</button>
+            </div>
+            <div class="status disconnected" id="status">Connecting...</div>
+        </div>
+    </div>
+
+    <!-- Diagram modal (shared) -->
+    <div class="modal" id="diagram-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">Diagram</div>
+                <button class="modal-close" type="button" data-modal-close aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <img id="modal-image" alt="">
+            </div>
+        </div>
     </div>
 
     <div style="padding: 16px;">
@@ -242,6 +354,49 @@
 
         function pnlClass(val) { return val >= 0 ? 'positive' : 'negative'; }
         function pnlSign(val) { return val >= 0 ? '+' : ''; }
+
+        // ---------- Diagram modal ----------
+        // Purely a visual overlay — does not touch the WS, engine state, or Plotly.
+        // The dashboard keeps streaming and updating in the background.
+        (function () {
+            const modal = document.getElementById('diagram-modal');
+            const titleEl = document.getElementById('modal-title');
+            const imgEl = document.getElementById('modal-image');
+
+            const DIAGRAMS = {
+                arch:  { title: 'System Architecture', src: '/static/sys-arch.png',  alt: 'System architecture diagram' },
+                class: { title: 'Class Diagram',       src: '/static/class-diag.png', alt: 'Class diagram' },
+            };
+
+            function openModal(key) {
+                const d = DIAGRAMS[key];
+                if (!d) return;
+                titleEl.textContent = d.title;
+                imgEl.src = d.src;
+                imgEl.alt = d.alt;
+                modal.hidden = false;
+                modal.classList.add('open');
+            }
+
+            function closeModal() {
+                modal.classList.remove('open');
+                modal.hidden = true;
+                imgEl.src = '';
+            }
+
+            document.querySelectorAll('[data-modal-open]').forEach(btn => {
+                btn.addEventListener('click', () => openModal(btn.dataset.modalOpen));
+            });
+            document.querySelectorAll('[data-modal-close]').forEach(btn => {
+                btn.addEventListener('click', closeModal);
+            });
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+            });
+        })();
 
         function connect() {
             const ws = new WebSocket(`ws://${location.host}/ws`);

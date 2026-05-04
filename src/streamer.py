@@ -31,11 +31,7 @@ SPREADS = {
 class MarketDataStreamer:
     """Generates mock bid/ask prices using a random walk."""
 
-    def __init__(
-        self,
-        instruments: dict[str, float] | None = None,
-        tick_interval: float = 0.1,
-    ) -> None:
+    def __init__(self, instruments: dict[str, float] | None = None, tick_interval: float = 0.1) -> None:
         self.prices = dict(instruments or INSTRUMENTS)
         self.tick_interval = tick_interval
         self.subscribers: list[asyncio.Queue] = []
