@@ -239,6 +239,99 @@
 
         /* ---------- Chart containers ---------- */
         .plot { height: 300px; }
+
+        /* Text variant of the modal — for API docs etc. */
+        .modal-dialog-text {
+            width: min(720px, 95vw);
+        }
+        .modal-body-text {
+            background: var(--bg-base);
+            color: var(--text-primary);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .api-intro {
+            margin-bottom: var(--gap);
+            color: var(--text-muted);
+        }
+        .api-intro code,
+        .api-table code,
+        .api-examples code {
+            background: var(--bg-elevated);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+            font-size: 12px;
+            color: var(--text-primary);
+        }
+        .api-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: var(--pad);
+        }
+        .api-table th {
+            text-align: left;
+            font-weight: 500;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .api-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border-subtle);
+            vertical-align: top;
+        }
+        .api-table td:first-child { white-space: nowrap; }
+        .api-examples-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .api-examples pre {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            overflow-x: auto;
+            font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+        .api-examples pre code {
+            background: transparent;
+            padding: 0;
+        }
+        .api-examples-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .btn-copy {
+            background: var(--bg-elevated);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 3px 10px;
+            font-size: 11px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .btn-copy:hover {
+            color: var(--text-primary);
+            border-color: var(--accent);
+        }
+        .btn-copy.copied {
+            color: var(--positive);
+            border-color: var(--positive);
+        }
     </style>
 </head>
 <body>
@@ -248,6 +341,7 @@
             <div class="header-actions">
                 <button class="btn-ghost" type="button" data-modal-open="arch">Architecture</button>
                 <button class="btn-ghost" type="button" data-modal-open="class">Class Diagram</button>
+                <button class="btn-ghost" type="button" data-modal-open="api">API</button>
             </div>
             <div class="status disconnected" id="status">Connecting...</div>
         </div>
@@ -321,6 +415,46 @@
         </div>
     </div>
 
+    <!-- API endpoints modal -->
+    <div class="modal" id="api-modal" role="dialog" aria-modal="true" aria-labelledby="api-modal-title" hidden>
+        <div class="modal-dialog modal-dialog-text">
+            <div class="modal-header">
+                <div class="modal-title" id="api-modal-title">CLI Endpoints</div>
+                <button class="modal-close" type="button" data-api-close aria-label="Close">×</button>
+            </div>
+            <div class="modal-body modal-body-text">
+                <p class="api-intro">
+                    Read-only point-in-time views into engine state, for when the
+                    WebSocket throttle (~250ms) is too slow. JSON by default;
+                    append <code>?format=table</code> for ASCII output.
+                </p>
+                <table class="api-table">
+                    <thead>
+                        <tr><th>Endpoint</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>GET /api/summary</code></td><td>Top-line PnL, trade count, instrument count</td></tr>
+                        <tr><td><code>GET /api/ticks</code></td><td>Latest tick for every instrument</td></tr>
+                        <tr><td><code>GET /api/ticks/&lt;instrument&gt;</code></td><td>Latest tick for one instrument (e.g. <code>EURUSD</code>)</td></tr>
+                        <tr><td><code>GET /api/positions</code></td><td>All positions with PnL breakdown</td></tr>
+                        <tr><td><code>GET /api/positions/&lt;instrument&gt;</code></td><td>One position drill-down</td></tr>
+                        <tr><td><code>GET /api/clients</code></td><td>Client metrics, sorted by volume desc</td></tr>
+                    </tbody>
+                </table>
+                <div class="api-examples">
+                    <div class="api-examples-header">
+                        <div class="api-examples-title">Examples</div>
+                        <button class="btn-copy" type="button" data-copy-target="api-examples-code">Copy</button>
+                    </div>
+                <pre><code id="api-examples-code">curl -s localhost:8080/api/summary | jq
+                curl -s 'localhost:8080/api/ticks/EURUSD'
+                curl -s 'localhost:8080/api/positions?format=table'
+                curl -s 'localhost:8080/api/clients?format=table'</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const css = getComputedStyle(document.documentElement);
         const colors = {
@@ -355,11 +489,12 @@
         function pnlClass(val) { return val >= 0 ? 'positive' : 'negative'; }
         function pnlSign(val) { return val >= 0 ? '+' : ''; }
 
-        // ---------- Diagram modal ----------
-        // Purely a visual overlay — does not touch the WS, engine state, or Plotly.
+        // ---------- Modals (diagram + API docs) ----------
+        // Purely visual overlays — do not touch the WS, engine state, or Plotly.
         // The dashboard keeps streaming and updating in the background.
         (function () {
-            const modal = document.getElementById('diagram-modal');
+            const diagramModal = document.getElementById('diagram-modal');
+            const apiModal = document.getElementById('api-modal');
             const titleEl = document.getElementById('modal-title');
             const imgEl = document.getElementById('modal-image');
 
@@ -368,33 +503,89 @@
                 class: { title: 'Class Diagram',       src: '/static/class-diag.png', alt: 'Class diagram' },
             };
 
-            function openModal(key) {
+            function openDiagram(key) {
                 const d = DIAGRAMS[key];
                 if (!d) return;
                 titleEl.textContent = d.title;
                 imgEl.src = d.src;
                 imgEl.alt = d.alt;
-                modal.hidden = false;
-                modal.classList.add('open');
+                diagramModal.hidden = false;
+                diagramModal.classList.add('open');
             }
 
-            function closeModal() {
-                modal.classList.remove('open');
-                modal.hidden = true;
+            function closeDiagram() {
+                diagramModal.classList.remove('open');
+                diagramModal.hidden = true;
                 imgEl.src = '';
+            }
+
+            function openApi() {
+                apiModal.hidden = false;
+                apiModal.classList.add('open');
+            }
+
+            function closeApi() {
+                apiModal.classList.remove('open');
+                apiModal.hidden = true;
+            }
+
+            function openModal(key) {
+                if (key === 'api') openApi();
+                else openDiagram(key);
             }
 
             document.querySelectorAll('[data-modal-open]').forEach(btn => {
                 btn.addEventListener('click', () => openModal(btn.dataset.modalOpen));
             });
             document.querySelectorAll('[data-modal-close]').forEach(btn => {
-                btn.addEventListener('click', closeModal);
+                btn.addEventListener('click', closeDiagram);
             });
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) closeModal();
+            document.querySelectorAll('[data-api-close]').forEach(btn => {
+                btn.addEventListener('click', closeApi);
             });
+
+            // Copy buttons (data-copy-target points to an element ID whose textContent is copied)
+            document.querySelectorAll('[data-copy-target]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const target = document.getElementById(btn.dataset.copyTarget);
+                    if (!target) return;
+                    const text = target.textContent;
+                    try {
+                        await navigator.clipboard.writeText(text);
+                    } catch {
+                        // Fallback for non-secure contexts (http://, file://) where Clipboard API is blocked
+                        const ta = document.createElement('textarea');
+                        ta.value = text;
+                        ta.style.position = 'fixed';
+                        ta.style.opacity = '0';
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                    }
+                    const original = btn.textContent;
+                    btn.textContent = 'Copied';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = original;
+                        btn.classList.remove('copied');
+                    }, 1500);
+                });
+            });
+
+            // Backdrop clicks (click on the overlay itself, not the dialog)
+            diagramModal.addEventListener('click', (e) => {
+                if (e.target === diagramModal) closeDiagram();
+            });
+            apiModal.addEventListener('click', (e) => {
+                if (e.target === apiModal) closeApi();
+            });
+
+            // Esc closes whichever is open
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+                if (e.key !== 'Escape') return;
+                if (diagramModal.classList.contains('open')) closeDiagram();
+                if (apiModal.classList.contains('open')) closeApi();
             });
         })();
 

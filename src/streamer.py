@@ -2,7 +2,7 @@
 
 import asyncio
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .models import MarketTick
 
@@ -58,7 +58,7 @@ class MarketDataStreamer:
                     instrument=instrument,
                     bid=round(new_mid - half_spread, 5),
                     ask=round(new_mid + half_spread, 5),
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                 )
 
                 for queue in self.subscribers:

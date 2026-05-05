@@ -4,7 +4,14 @@ import asyncio
 import json
 import time
 
-from quart import Quart, render_template, websocket
+from quart import (
+    Quart,
+    abort,
+    jsonify,
+    render_template,
+    request,
+    websocket,
+)
 
 from .config import AppConfig
 from .engine import BookEngine
@@ -22,6 +29,8 @@ ws_clients: set = set()
 _last_broadcast: float = 0.0
 
 
+# ---------- Background workers ----------
+
 async def process_ticks(tick_queue: asyncio.Queue) -> None:
     """Process market ticks and update engine."""
     while True:
@@ -30,7 +39,7 @@ async def process_ticks(tick_queue: asyncio.Queue) -> None:
 
 
 async def process_trades(trade_queue: asyncio.Queue) -> None:
-    """Process trades, update engine, and push snapshots to WebSocket clients."""
+    """Process trades and update engine. Broadcasting is handled by broadcast_loop."""
     while True:
         trade: Trade = await trade_queue.get()
         engine.process_trade(trade)
@@ -109,6 +118,125 @@ async def broadcast_snapshot() -> None:
             disconnected.add(client)
     ws_clients -= disconnected
 
+
+# ---------- CLI / API endpoints ----------
+# Read-only views into engine state for traders who need sub-throttle latency
+# (the WS pushes are throttled to ~ws_throttle_ms; these are point-in-time reads).
+# Safe without locking: Quart runs everything on a single event loop, so handlers
+# can't be interrupted mid-snapshot by the tick/trade processors.
+
+def _summary_dict() -> dict:
+    snap = engine.snapshot()
+    trade_count = sum(p.trade_count for p in snap.positions.values())
+    return {
+        "timestamp": snap.timestamp.isoformat(),
+        "total_pnl": round(snap.total_pnl, 2),
+        "total_unrealised_pnl": round(snap.total_unrealised_pnl, 2),
+        "total_realised_pnl": round(snap.total_realised_pnl, 2),
+        "total_monetisation": round(snap.total_monetisation, 2),
+        "total_trades": trade_count,
+        "instruments": len(snap.positions),
+    }
+
+
+def _tick_dict(t) -> dict:
+    return {
+        "instrument": t.instrument,
+        "bid": t.bid,
+        "ask": t.ask,
+        "mid": round((t.bid + t.ask) / 2, 5),
+        "spread": round(t.spread, 5),
+    }
+
+
+def _position_dict(p) -> dict:
+    return {
+        "instrument": p.instrument,
+        "net_quantity": p.net_quantity,
+        "total_pnl": round(p.total_pnl, 2),
+        "unrealised_pnl": round(p.unrealised_pnl, 2),
+        "realised_pnl": round(p.realised_pnl, 2),
+        "monetisation": round(p.monetisation, 2),
+        "trade_count": p.trade_count,
+    }
+
+
+def _client_dicts() -> list[dict]:
+    rows = []
+    for k, v in engine.client_metrics.items():
+        rows.append({
+            "client": v.client,
+            "trade_count": v.trade_count,
+            "total_volume": round(v.total_volume, 2),
+            "total_spread_paid": round(v.total_spread_paid, 4),
+            "yield_bps": round(v.yield_bps, 2),
+            "realised_pnl": round(engine.pnl_per_client.get(k, 0.0), 2),
+        })
+    rows.sort(key=lambda r: r["total_volume"], reverse=True)
+    return rows
+
+
+def _format_table(rows: list[dict]) -> str:
+    """Minimal ASCII table — no deps, curl-friendly."""
+    if not rows:
+        return "(no rows)\n"
+    cols = list(rows[0].keys())
+    widths = {c: max(len(c), *(len(str(r[c])) for r in rows)) for c in cols}
+    sep = "  "
+    lines = [sep.join(c.ljust(widths[c]) for c in cols)]
+    lines.append(sep.join("-" * widths[c] for c in cols))
+    for r in rows:
+        lines.append(sep.join(str(r[c]).ljust(widths[c]) for c in cols))
+    return "\n".join(lines) + "\n"
+
+
+def _respond(payload):
+    """JSON by default; ?format=table renders rows as ASCII."""
+    if request.args.get("format") == "table":
+        rows = payload if isinstance(payload, list) else [payload]
+        return _format_table(rows), 200, {"Content-Type": "text/plain; charset=utf-8"}
+    return jsonify(payload)
+
+
+@app.route("/api/summary")
+async def api_summary():
+    return _respond(_summary_dict())
+
+
+@app.route("/api/ticks")
+async def api_ticks():
+    return _respond([_tick_dict(t) for t in engine.latest_ticks.values()])
+
+
+@app.route("/api/ticks/<instrument>")
+async def api_tick_one(instrument: str):
+    t = engine.latest_ticks.get(instrument.upper())
+    if t is None:
+        abort(404, description=f"unknown instrument: {instrument}")
+    return _respond(_tick_dict(t))
+
+
+@app.route("/api/positions")
+async def api_positions():
+    snap = engine.snapshot()
+    return _respond([_position_dict(p) for p in snap.positions.values()])
+
+
+@app.route("/api/positions/<instrument>")
+async def api_position_one(instrument: str):
+    snap = engine.snapshot()
+    p = snap.positions.get(instrument.upper())
+    if p is None:
+        abort(404, description=f"unknown instrument: {instrument}")
+    return _respond(_position_dict(p))
+
+
+@app.route("/api/clients")
+async def api_clients():
+    return _respond(_client_dicts())
+
+
+# ---------- App lifecycle ----------
 
 @app.before_serving
 async def startup() -> None:
