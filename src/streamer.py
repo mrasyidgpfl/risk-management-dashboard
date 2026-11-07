@@ -2,7 +2,7 @@
 
 import asyncio
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .models import MarketTick
 
@@ -31,11 +31,7 @@ SPREADS = {
 class MarketDataStreamer:
     """Generates mock bid/ask prices using a random walk."""
 
-    def __init__(
-        self,
-        instruments: dict[str, float] | None = None,
-        tick_interval: float = 0.1,
-    ) -> None:
+    def __init__(self, instruments: dict[str, float] | None = None, tick_interval: float = 0.1) -> None:
         self.prices = dict(instruments or INSTRUMENTS)
         self.tick_interval = tick_interval
         self.subscribers: list[asyncio.Queue] = []
@@ -62,7 +58,7 @@ class MarketDataStreamer:
                     instrument=instrument,
                     bid=round(new_mid - half_spread, 5),
                     ask=round(new_mid + half_spread, 5),
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                 )
 
                 for queue in self.subscribers:

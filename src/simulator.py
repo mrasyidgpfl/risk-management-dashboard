@@ -13,12 +13,7 @@ CLIENTS = ["alpha_capital", "summit_trading", "horizon_fund", "vertex_markets", 
 class TradeSimulator:
     """Simulates clients trading against our prices."""
 
-    def __init__(
-        self,
-        tick_queue: asyncio.Queue,
-        trade_interval: float = 0.5,
-        trade_probability: float = 0.3,
-    ) -> None:
+    def __init__(self, tick_queue: asyncio.Queue, trade_interval: float = 0.5, trade_probability: float = 0.3) -> None:
         self.tick_queue = tick_queue
         self.trade_interval = trade_interval
         self.trade_probability = trade_probability

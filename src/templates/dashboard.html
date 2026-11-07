@@ -6,38 +6,358 @@
     <title>Risk Management Dashboard</title>
     <script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; }
-        .header { padding: 16px 24px; background: #161a25; border-bottom: 1px solid #2a2e3a; display: flex; justify-content: space-between; align-items: center; }
+        /* ---------- Tokens ---------- */
+        :root {
+            --bg-base: #0f1117;
+            --bg-surface: #161a25;
+            --bg-elevated: #1e2230;
+            --border: #2a2e3a;
+            --border-subtle: #1e2230;
+
+            --text-primary: #e0e0e0;
+            --text-muted: #9ca3af;
+            --text-dim: #6b7280;
+
+            --positive: #4ade80;
+            --negative: #f87171;
+            --accent: #6366f1;
+
+            --radius: 8px;
+            --radius-sm: 6px;
+            --gap: 12px;
+            --pad: 16px;
+
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-num: tabular-nums;
+        }
+
+        .mb-gap { margin-bottom: var(--gap); }
+
+        /* ---------- Reset ---------- */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-base);
+            color: var(--text-primary);
+        }
+
+        /* ---------- Header ---------- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--pad) 24px;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+        }
         .header h1 { font-size: 18px; font-weight: 600; }
-        .status { font-size: 13px; color: #4ade80; }
-        .status.disconnected { color: #f87171; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; }
-        .card { background: #161a25; border: 1px solid #2a2e3a; border-radius: 8px; padding: 16px; }
-        .card-title { font-size: 13px; color: #9ca3af; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .status { font-size: 13px; color: var(--positive); }
+        .status.disconnected { color: var(--negative); }
+
+        /* ---------- Header actions ---------- */
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--gap);
+        }
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-ghost {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 6px 12px;
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .btn-ghost:hover {
+            border-color: var(--accent);
+            background: var(--bg-surface);
+        }
+        .btn-ghost:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        /* ---------- Modal ---------- */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            z-index: 1000;
+        }
+        .modal.open { display: flex; }
+        .modal-dialog {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            max-width: 95vw;
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px var(--pad);
+            border-bottom: 1px solid var(--border);
+        }
+        .modal-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .modal-close {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            width: 28px;
+            height: 28px;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-close:hover { color: var(--text-primary); border-color: var(--accent); }
+        .modal-body {
+            padding: var(--pad);
+            overflow: auto;
+            /* Themed background behind transparent PNGs */
+            background: #ffffff;
+        }
+        .modal-body img {
+            display: block;
+            max-width: 100%;
+            max-height: calc(92vh - 80px);
+            height: auto;
+            margin: 0 auto;
+        }
+
+        /* ---------- Layout ---------- */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--gap);
+            padding: var(--pad);
+        }
         .full-width { grid-column: 1 / -1; }
-        .metrics-row { display: flex; gap: 16px; margin-bottom: 16px; }
-        .metric { background: #161a25; border: 1px solid #2a2e3a; border-radius: 8px; padding: 16px; flex: 1; }
-        .metric-label { font-size: 12px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; }
-        .metric-value { font-size: 24px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
-        .positive { color: #4ade80; }
-        .negative { color: #f87171; }
+
+        /* ---------- Card ---------- */
+        .card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: var(--pad);
+        }
+        .card-title {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: var(--gap);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ---------- Metric tiles ---------- */
+        .metrics-row {
+            display: flex;
+            gap: var(--pad);
+            margin-bottom: var(--pad);
+        }
+        .metric {
+            flex: 1;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: var(--pad);
+        }
+        .metric-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .metric-value {
+            margin-top: 4px;
+            font-size: 24px;
+            font-weight: 700;
+            font-variant-numeric: var(--font-num);
+        }
+
+        /* ---------- PnL colour semantics ---------- */
+        .positive { color: var(--positive); }
+        .negative { color: var(--negative); }
+
+        /* ---------- Table ---------- */
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { text-align: left; padding: 8px; color: #9ca3af; border-bottom: 1px solid #2a2e3a; font-weight: 500; }
-        td { padding: 8px; border-bottom: 1px solid #1e2230; font-variant-numeric: tabular-nums; }
-        .ticker { display: flex; gap: 12px; flex-wrap: wrap; }
-        .ticker-item { background: #1e2230; padding: 8px 12px; border-radius: 6px; font-size: 13px; min-width: 160px; }
+        th {
+            padding: 8px;
+            text-align: left;
+            font-weight: 500;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 8px;
+            border-bottom: 1px solid var(--border-subtle);
+            font-variant-numeric: var(--font-num);
+        }
+
+        /* ---------- Ticker ---------- */
+        .ticker { display: flex; gap: var(--gap); flex-wrap: wrap; }
+        .ticker-item {
+            min-width: 160px;
+            padding: 8px 12px;
+            background: var(--bg-elevated);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+        }
         .ticker-pair { font-weight: 600; margin-bottom: 4px; }
-        .ticker-prices { display: flex; gap: 12px; font-variant-numeric: tabular-nums; }
-        .bid { color: #f87171; }
-        .ask { color: #4ade80; }
+        .ticker-prices {
+            display: flex;
+            gap: var(--gap);
+            font-variant-numeric: var(--font-num);
+        }
+        .ticker-spread { color: var(--text-dim); font-size: 11px; }
+        .bid { color: var(--negative); }
+        .ask { color: var(--positive); }
+
+        /* ---------- Chart containers ---------- */
         .plot { height: 300px; }
+
+        /* Text variant of the modal — for API docs etc. */
+        .modal-dialog-text {
+            width: min(720px, 95vw);
+        }
+        .modal-body-text {
+            background: var(--bg-base);
+            color: var(--text-primary);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .api-intro {
+            margin-bottom: var(--gap);
+            color: var(--text-muted);
+        }
+        .api-intro code,
+        .api-table code,
+        .api-examples code {
+            background: var(--bg-elevated);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+            font-size: 12px;
+            color: var(--text-primary);
+        }
+        .api-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: var(--pad);
+        }
+        .api-table th {
+            text-align: left;
+            font-weight: 500;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .api-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border-subtle);
+            vertical-align: top;
+        }
+        .api-table td:first-child { white-space: nowrap; }
+        .api-examples-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .api-examples pre {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            overflow-x: auto;
+            font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+        .api-examples pre code {
+            background: transparent;
+            padding: 0;
+        }
+        .api-examples-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .btn-copy {
+            background: var(--bg-elevated);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 3px 10px;
+            font-size: 11px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .btn-copy:hover {
+            color: var(--text-primary);
+            border-color: var(--accent);
+        }
+        .btn-copy.copied {
+            color: var(--positive);
+            border-color: var(--positive);
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Risk Management Dashboard</h1>
-        <div class="status disconnected" id="status">Connecting...</div>
+        <div class="header-right">
+            <div class="header-actions">
+                <button class="btn-ghost" type="button" data-modal-open="arch">Architecture</button>
+                <button class="btn-ghost" type="button" data-modal-open="class">Class Diagram</button>
+                <button class="btn-ghost" type="button" data-modal-open="api">API</button>
+            </div>
+            <div class="status disconnected" id="status">Connecting...</div>
+        </div>
+    </div>
+
+    <!-- Diagram modal (shared) -->
+    <div class="modal" id="diagram-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">Diagram</div>
+                <button class="modal-close" type="button" data-modal-close aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <img id="modal-image" alt="">
+            </div>
+        </div>
     </div>
 
     <div style="padding: 16px;">
@@ -45,6 +365,10 @@
             <div class="metric">
                 <div class="metric-label">Total PnL</div>
                 <div class="metric-value" id="total-pnl">-</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Monetisation</div>
+                <div class="metric-value" id="monetisation">-</div>
             </div>
             <div class="metric">
                 <div class="metric-label">Unrealised PnL</div>
@@ -60,7 +384,7 @@
             </div>
         </div>
 
-        <div class="card full-width" style="margin-bottom: 12px;">
+        <div class="card full-width mb-gap">
             <div class="card-title">Live Prices</div>
             <div class="ticker" id="ticker"></div>
         </div>
@@ -91,7 +415,57 @@
         </div>
     </div>
 
+    <!-- API endpoints modal -->
+    <div class="modal" id="api-modal" role="dialog" aria-modal="true" aria-labelledby="api-modal-title" hidden>
+        <div class="modal-dialog modal-dialog-text">
+            <div class="modal-header">
+                <div class="modal-title" id="api-modal-title">CLI Endpoints</div>
+                <button class="modal-close" type="button" data-api-close aria-label="Close">×</button>
+            </div>
+            <div class="modal-body modal-body-text">
+                <p class="api-intro">
+                    Read-only point-in-time views into engine state, for when the
+                    WebSocket throttle (~250ms) is too slow. JSON by default;
+                    append <code>?format=table</code> for ASCII output.
+                </p>
+                <table class="api-table">
+                    <thead>
+                        <tr><th>Endpoint</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>GET /api/summary</code></td><td>Top-line PnL, trade count, instrument count</td></tr>
+                        <tr><td><code>GET /api/ticks</code></td><td>Latest tick for every instrument</td></tr>
+                        <tr><td><code>GET /api/ticks/&lt;instrument&gt;</code></td><td>Latest tick for one instrument (e.g. <code>EURUSD</code>)</td></tr>
+                        <tr><td><code>GET /api/positions</code></td><td>All positions with PnL breakdown</td></tr>
+                        <tr><td><code>GET /api/positions/&lt;instrument&gt;</code></td><td>One position drill-down</td></tr>
+                        <tr><td><code>GET /api/clients</code></td><td>Client metrics, sorted by volume desc</td></tr>
+                    </tbody>
+                </table>
+                <div class="api-examples">
+                    <div class="api-examples-header">
+                        <div class="api-examples-title">Examples</div>
+                        <button class="btn-copy" type="button" data-copy-target="api-examples-code">Copy</button>
+                    </div>
+                <pre><code id="api-examples-code">curl -s localhost:8080/api/summary | jq
+                curl -s 'localhost:8080/api/ticks/EURUSD'
+                curl -s 'localhost:8080/api/positions?format=table'
+                curl -s 'localhost:8080/api/clients?format=table'</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        const css = getComputedStyle(document.documentElement);
+        const colors = {
+            muted: css.getPropertyValue('--text-muted').trim(),
+            borderSubtle: css.getPropertyValue('--border-subtle').trim(),
+            border: css.getPropertyValue('--border').trim(),
+            accent: css.getPropertyValue('--accent').trim(),
+            positive: css.getPropertyValue('--positive').trim(),
+            negative: css.getPropertyValue('--negative').trim(),
+        };
+
         const plotLayout = {
             paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
             font: { color: '#9ca3af', size: 11 },
@@ -102,7 +476,11 @@
 
         Plotly.newPlot('pnl-chart', [{ x: [], y: [], type: 'scatter', mode: 'lines', line: { color: '#6366f1', width: 2 }, name: 'Total PnL' }], { ...plotLayout }, { responsive: true, displayModeBar: false });
         Plotly.newPlot('exposure-chart', [{ x: [], y: [], type: 'bar', marker: { color: [] } }], { ...plotLayout }, { responsive: true, displayModeBar: false });
-        Plotly.newPlot('attribution-chart', [{ x: [], y: [], type: 'bar', marker: { color: [] } }], { ...plotLayout }, { responsive: true, displayModeBar: false });
+        Plotly.newPlot('attribution-chart', [
+                    { x: [], y: [], type: 'bar', name: 'Monetisation', marker: { color: colors.positive } },
+                    { x: [], y: [], type: 'bar', name: 'Inventory PnL', marker: { color: colors.accent } },
+                ], { ...plotLayout, barmode: 'relative', showlegend: true, legend: { orientation: 'h', y: 1.1 } },
+                { responsive: true, displayModeBar: false });
 
         function formatNum(n, decimals = 2) {
             return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -110,6 +488,106 @@
 
         function pnlClass(val) { return val >= 0 ? 'positive' : 'negative'; }
         function pnlSign(val) { return val >= 0 ? '+' : ''; }
+
+        // ---------- Modals (diagram + API docs) ----------
+        // Purely visual overlays — do not touch the WS, engine state, or Plotly.
+        // The dashboard keeps streaming and updating in the background.
+        (function () {
+            const diagramModal = document.getElementById('diagram-modal');
+            const apiModal = document.getElementById('api-modal');
+            const titleEl = document.getElementById('modal-title');
+            const imgEl = document.getElementById('modal-image');
+
+            const DIAGRAMS = {
+                arch:  { title: 'System Architecture', src: '/static/sys-arch.png',  alt: 'System architecture diagram' },
+                class: { title: 'Class Diagram',       src: '/static/class-diag.png', alt: 'Class diagram' },
+            };
+
+            function openDiagram(key) {
+                const d = DIAGRAMS[key];
+                if (!d) return;
+                titleEl.textContent = d.title;
+                imgEl.src = d.src;
+                imgEl.alt = d.alt;
+                diagramModal.hidden = false;
+                diagramModal.classList.add('open');
+            }
+
+            function closeDiagram() {
+                diagramModal.classList.remove('open');
+                diagramModal.hidden = true;
+                imgEl.src = '';
+            }
+
+            function openApi() {
+                apiModal.hidden = false;
+                apiModal.classList.add('open');
+            }
+
+            function closeApi() {
+                apiModal.classList.remove('open');
+                apiModal.hidden = true;
+            }
+
+            function openModal(key) {
+                if (key === 'api') openApi();
+                else openDiagram(key);
+            }
+
+            document.querySelectorAll('[data-modal-open]').forEach(btn => {
+                btn.addEventListener('click', () => openModal(btn.dataset.modalOpen));
+            });
+            document.querySelectorAll('[data-modal-close]').forEach(btn => {
+                btn.addEventListener('click', closeDiagram);
+            });
+            document.querySelectorAll('[data-api-close]').forEach(btn => {
+                btn.addEventListener('click', closeApi);
+            });
+
+            // Copy buttons (data-copy-target points to an element ID whose textContent is copied)
+            document.querySelectorAll('[data-copy-target]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const target = document.getElementById(btn.dataset.copyTarget);
+                    if (!target) return;
+                    const text = target.textContent;
+                    try {
+                        await navigator.clipboard.writeText(text);
+                    } catch {
+                        // Fallback for non-secure contexts (http://, file://) where Clipboard API is blocked
+                        const ta = document.createElement('textarea');
+                        ta.value = text;
+                        ta.style.position = 'fixed';
+                        ta.style.opacity = '0';
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                    }
+                    const original = btn.textContent;
+                    btn.textContent = 'Copied';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = original;
+                        btn.classList.remove('copied');
+                    }, 1500);
+                });
+            });
+
+            // Backdrop clicks (click on the overlay itself, not the dialog)
+            diagramModal.addEventListener('click', (e) => {
+                if (e.target === diagramModal) closeDiagram();
+            });
+            apiModal.addEventListener('click', (e) => {
+                if (e.target === apiModal) closeApi();
+            });
+
+            // Esc closes whichever is open
+            document.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape') return;
+                if (diagramModal.classList.contains('open')) closeDiagram();
+                if (apiModal.classList.contains('open')) closeApi();
+            });
+        })();
 
         function connect() {
             const ws = new WebSocket(`ws://${location.host}/ws`);
@@ -124,6 +602,7 @@
 
                 // Top metrics
                 document.getElementById('total-pnl').innerHTML = `<span class="${pnlClass(d.total_pnl)}">${pnlSign(d.total_pnl)}${formatNum(d.total_pnl)}</span>`;
+                document.getElementById('monetisation').innerHTML = `<span class="positive">+${formatNum(d.total_monetisation)}</span>`;
                 document.getElementById('unrealised-pnl').innerHTML = `<span class="${pnlClass(d.total_unrealised_pnl)}">${pnlSign(d.total_unrealised_pnl)}${formatNum(d.total_unrealised_pnl)}</span>`;
                 document.getElementById('realised-pnl').innerHTML = `<span class="${pnlClass(d.total_realised_pnl)}">${pnlSign(d.total_realised_pnl)}${formatNum(d.total_realised_pnl)}</span>`;
                 const totalTrades = Object.values(d.positions).reduce((sum, p) => sum + p.trade_count, 0);
@@ -137,7 +616,8 @@
                         <div class="ticker-prices">
                             <span class="bid">${t.bid.toFixed(5)}</span>
                             <span class="ask">${t.ask.toFixed(5)}</span>
-                            <span style="color:#6b7280;font-size:11px">${t.spread < 0.01 ? t.spread.toFixed(4) : t.spread.toFixed(2)}</span>                        </div>
+                            <span class="ticker-spread">${t.spread < 0.01 ? t.spread.toFixed(4) : t.spread.toFixed(2)}</span>
+                        </div>
                     </div>
                 `).join('');
 
@@ -152,10 +632,19 @@
                 const expColors = exposures.map(e => e >= 0 ? '#4ade80' : '#f87171');
                 Plotly.react('exposure-chart', [{ x: instruments, y: exposures, type: 'bar', marker: { color: expColors } }], { ...plotLayout, xaxis: { ...plotLayout.xaxis, type: 'category' } }, { responsive: true, displayModeBar: false });
 
-                // Attribution
-                const pnls = instruments.map(i => d.positions[i].total_pnl);
-                const attrColors = pnls.map(p => p >= 0 ? '#4ade80' : '#f87171');
-                Plotly.react('attribution-chart', [{ x: instruments, y: pnls, type: 'bar', marker: { color: attrColors } }], { ...plotLayout, xaxis: { ...plotLayout.xaxis, type: 'category' } }, { responsive: true, displayModeBar: false });
+                // Attribution: Total PnL = Monetisation (spread) + Inventory PnL (mark-to-market)
+                const monetisationByInst = instruments.map(i => d.positions[i].monetisation);
+                const inventoryByInst = instruments.map(i =>
+                    d.positions[i].total_pnl - d.positions[i].monetisation
+                );
+                Plotly.react('attribution-chart', [
+                    { x: instruments, y: monetisationByInst, type: 'bar', name: 'Monetisation',
+                      marker: { color: colors.positive } },
+                    { x: instruments, y: inventoryByInst, type: 'bar', name: 'Inventory PnL',
+                      marker: { color: inventoryByInst.map(v => v >= 0 ? colors.positive : colors.negative) } },
+                ], { ...plotLayout, barmode: 'relative', xaxis: { ...plotLayout.xaxis, type: 'category' },
+                     showlegend: true, legend: { orientation: 'h', y: 1.1 } },
+                { responsive: true, displayModeBar: false });
 
                 // Client table
                 const tbody = document.getElementById('client-table');
